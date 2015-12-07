@@ -651,7 +651,7 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 	cacheMap typeCache, exprCache;
 
 	pgFunction *function = 0;
-	wxString argNamesCol, argDefsCol, proConfigCol, proType, seclab;
+	wxString argNamesCol, argDefsCol, proConfigCol, proType, sourceByPgSelect, seclab;
 	if (obj->GetConnection()->BackendMinimumVersion(8, 0))
 		argNamesCol = wxT("proargnames, ");
 	if (obj->GetConnection()->HasFeature(FEATURE_FUNCTION_DEFAULTS) && !obj->GetConnection()->BackendMinimumVersion(8, 4))
@@ -664,7 +664,7 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 		proType = wxT("protype, ");
 	if (obj->GetConnection()->BackendMinimumVersion(8, 4))
 	{
-		seclab = wxT(",\n")
+		sourceByPgSelect = wxT(",\n")
 		         wxT("pg_get_functiondef(pr.oid) AS source_by_pg");
 	}
 	if (obj->GetConnection()->BackendMinimumVersion(9, 1))
@@ -677,7 +677,7 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 	pgSet *functions = obj->GetDatabase()->ExecuteSet(
 	                       wxT("SELECT pr.oid, pr.xmin, pr.*, format_type(TYP.oid, NULL) AS typname, typns.nspname AS typnsp, lanname, ") +
 	                       argNamesCol  + argDefsCol + proConfigCol + proType +
-	                       wxT("       pg_get_userbyid(proowner) as funcowner, description") + seclab + wxT("\n")
+	                       wxT("       pg_get_userbyid(proowner) as funcowner, description") + sourceByPgSelect + seclab + wxT("\n")
 	                       wxT("  FROM pg_proc pr\n")
 	                       wxT("  JOIN pg_type typ ON typ.oid=prorettype\n")
 	                       wxT("  JOIN pg_namespace typns ON typns.oid=typ.typnamespace\n")
@@ -961,13 +961,9 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 			function->iSetReturnAsSet(functions->GetBool(wxT("proretset")));
 			function->iSetIsStrict(functions->GetBool(wxT("proisstrict")));
 			function->iSetSource(functions->GetVal(wxT("prosrc")));
-			if (obj->GetConnection()->BackendMinimumVersion(8, 4))
+			if (sourceByPgSelect)
 			{
 				function->iSetSourceByPg(functions->GetVal(wxT("source_by_pg")));
-			}
-			else
-			{
-				function->iSetSourceByPg(wxT(""));
 			}
 			function->iSetBin(functions->GetVal(wxT("probin")));
 
