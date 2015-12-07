@@ -287,12 +287,19 @@ wxString pgFunction::GetSql(ctlTree *browser)
 		wxString qtSig = GetQuotedFullIdentifier()  + wxT("(") + GetArgSigList() + wxT(")");
 
 		sql = wxT("-- Function: ") + qtSig + wxT("\n\n")
-		      + wxT("-- DROP FUNCTION ") + qtSig + wxT(";")
-		      + wxT("\n\nCREATE OR REPLACE FUNCTION ") + qtName;
-
-		// Use Oracle style syntax for edb-spl functions
-		if (GetLanguage() == wxT("edbspl") && GetProcType() == 2)
+		      + wxT("-- DROP FUNCTION ") + qtSig + wxT(";\n\n");
+		
+		wxString functionDefByPgTrim = GetFunctionDefByPg().Trim();
+		if (!functionDefByPgTrim.IsEmpty())
 		{
+			sql += functionDefByPgTrim;
+		}
+		else if (GetLanguage() == wxT("edbspl") && GetProcType() == 2)
+		{
+			sql += wxT("CREATE OR REPLACE FUNCTION ") + qtName;
+
+			// Use Oracle style syntax for edb-spl functions
+
 			sql += wxT("\nRETURN ");
 			sql += GetReturnType();
 
@@ -304,6 +311,8 @@ wxString pgFunction::GetSql(ctlTree *browser)
 		}
 		else
 		{
+			sql += wxT("CREATE OR REPLACE FUNCTION ") + qtName;
+
 			sql += wxT("\n  RETURNS ");
 			if (GetReturnAsSet() && !GetReturnType().StartsWith(wxT("TABLE")))
 				sql += wxT("SETOF ");
@@ -347,16 +356,19 @@ wxString pgFunction::GetSql(ctlTree *browser)
 		if (!sql.Strip(wxString::both).EndsWith(wxT(";")))
 			sql += wxT(";");
 
-		size_t i;
-		for (i = 0 ; i < configList.GetCount() ; i++)
+		if (functionDefByPgTrim.IsEmpty())
 		{
-			if (configList.Item(i).BeforeFirst('=') != wxT("search_path") &&
-			        configList.Item(i).BeforeFirst('=') != wxT("temp_tablespaces"))
-				sql += wxT("\nALTER FUNCTION ") + qtSig
-				       + wxT(" SET ") + configList.Item(i).BeforeFirst('=') + wxT("='") + configList.Item(i).AfterFirst('=') + wxT("';\n");
-			else
-				sql += wxT("\nALTER FUNCTION ") + qtSig
-				       + wxT(" SET ") + configList.Item(i).BeforeFirst('=') + wxT("=") + configList.Item(i).AfterFirst('=') + wxT(";\n");
+			size_t i;
+			for (i = 0 ; i < configList.GetCount() ; i++)
+			{
+				if (configList.Item(i).BeforeFirst('=') != wxT("search_path") &&
+					configList.Item(i).BeforeFirst('=') != wxT("temp_tablespaces"))
+					sql += wxT("\nALTER FUNCTION ") + qtSig
+					       + wxT(" SET ") + configList.Item(i).BeforeFirst('=') + wxT("='") + configList.Item(i).AfterFirst('=') + wxT("';\n");
+				else
+					sql += wxT("\nALTER FUNCTION ") + qtSig
+					       + wxT(" SET ") + configList.Item(i).BeforeFirst('=') + wxT("=") + configList.Item(i).AfterFirst('=') + wxT(";\n");
+			}
 		}
 
 		sql += wxT("\n")
@@ -643,7 +655,7 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 	cacheMap typeCache, exprCache;
 
 	pgFunction *function = 0;
-	wxString argNamesCol, argDefsCol, proConfigCol, proType, seclab;
+	wxString argNamesCol, argDefsCol, proConfigCol, proType, functionDefByPgSelect, seclab;
 	if (obj->GetConnection()->BackendMinimumVersion(8, 0))
 		argNamesCol = wxT("proargnames, ");
 	if (obj->GetConnection()->HasFeature(FEATURE_FUNCTION_DEFAULTS) && !obj->GetConnection()->BackendMinimumVersion(8, 4))
@@ -654,6 +666,11 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 		proConfigCol = wxT("proconfig, ");
 	if (obj->GetConnection()->EdbMinimumVersion(8, 1))
 		proType = wxT("protype, ");
+	if (obj->GetConnection()->BackendMinimumVersion(8, 4))
+	{
+		functionDefByPgSelect = wxT(",\n")
+		         wxT("pg_get_functiondef(pr.oid) AS function_def_by_pg");
+	}
 	if (obj->GetConnection()->BackendMinimumVersion(9, 1))
 	{
 		seclab = wxT(",\n")
@@ -664,7 +681,7 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 	pgSet *functions = obj->GetDatabase()->ExecuteSet(
 	                       wxT("SELECT pr.oid, pr.xmin, pr.*, format_type(TYP.oid, NULL) AS typname, typns.nspname AS typnsp, lanname, ") +
 	                       argNamesCol  + argDefsCol + proConfigCol + proType +
-	                       wxT("       pg_get_userbyid(proowner) as funcowner, description") + seclab + wxT("\n")
+	                       wxT("       pg_get_userbyid(proowner) as funcowner, description") + functionDefByPgSelect + seclab + wxT("\n")
 	                       wxT("  FROM pg_proc pr\n")
 	                       wxT("  JOIN pg_type typ ON typ.oid=prorettype\n")
 	                       wxT("  JOIN pg_namespace typns ON typns.oid=typ.typnamespace\n")
@@ -948,6 +965,10 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 			function->iSetReturnAsSet(functions->GetBool(wxT("proretset")));
 			function->iSetIsStrict(functions->GetBool(wxT("proisstrict")));
 			function->iSetSource(functions->GetVal(wxT("prosrc")));
+			if (!functionDefByPgSelect.IsEmpty())
+			{
+				function->iSetFunctionDefByPg(functions->GetVal(wxT("function_def_by_pg")));
+			}
 			function->iSetBin(functions->GetVal(wxT("probin")));
 
 			wxString vol = functions->GetVal(wxT("provolatile"));
