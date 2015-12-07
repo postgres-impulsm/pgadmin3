@@ -118,6 +118,14 @@ public:
 	{
 		source = s;
 	}
+	wxString GetSourceByPg() const
+	{
+		return sourceByPg;
+	}
+	void iSetSourceByPg(const wxString &s)
+	{
+		sourceByPg = s;
+	}
 	wxString GetBin() const
 	{
 		return bin;
@@ -251,7 +259,7 @@ protected:
 	pgFunction(pgSchema *newSchema, int newType, const wxString &newName = wxT(""));
 
 private:
-	wxString returnType, language, volatility, source, bin;
+	wxString returnType, language, volatility, source, sourceByPg, bin;
 	wxArrayString argNamesArray, argTypesArray, argModesArray, argDefsArray;
 	bool returnAsSet, secureDefiner, isStrict, isWindow, isLeakProof;
 	long argCount, cost, rows, argDefValCount, procType;

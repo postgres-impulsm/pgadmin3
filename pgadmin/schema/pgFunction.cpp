@@ -287,12 +287,18 @@ wxString pgFunction::GetSql(ctlTree *browser)
 		wxString qtSig = GetQuotedFullIdentifier()  + wxT("(") + GetArgSigList() + wxT(")");
 
 		sql = wxT("-- Function: ") + qtSig + wxT("\n\n")
-		      + wxT("-- DROP FUNCTION ") + qtSig + wxT(";")
-		      + wxT("\n\nCREATE OR REPLACE FUNCTION ") + qtName;
-
-		// Use Oracle style syntax for edb-spl functions
-		if (GetLanguage() == wxT("edbspl") && GetProcType() == 2)
+		      + wxT("-- DROP FUNCTION ") + qtSig + wxT(";\n\n");
+		
+		if (GetSourceByPg())
 		{
+			sql += GetSourceByPg();
+		}
+		else if (GetLanguage() == wxT("edbspl") && GetProcType() == 2)
+		{
+			sql += wxT("CREATE OR REPLACE FUNCTION ") + qtName;
+
+			// Use Oracle style syntax for edb-spl functions
+
 			sql += wxT("\nRETURN ");
 			sql += GetReturnType();
 
@@ -304,6 +310,8 @@ wxString pgFunction::GetSql(ctlTree *browser)
 		}
 		else
 		{
+			sql += wxT("CREATE OR REPLACE FUNCTION ") + qtName;
+
 			sql += wxT("\n  RETURNS ");
 			if (GetReturnAsSet() && !GetReturnType().StartsWith(wxT("TABLE")))
 				sql += wxT("SETOF ");
@@ -654,6 +662,11 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 		proConfigCol = wxT("proconfig, ");
 	if (obj->GetConnection()->EdbMinimumVersion(8, 1))
 		proType = wxT("protype, ");
+	if (obj->GetConnection()->BackendMinimumVersion(8, 4))
+	{
+		seclab = wxT(",\n")
+		         wxT("pg_get_functiondef(pr.oid) AS source_by_pg");
+	}
 	if (obj->GetConnection()->BackendMinimumVersion(9, 1))
 	{
 		seclab = wxT(",\n")
@@ -948,6 +961,14 @@ pgFunction *pgFunctionFactory::AppendFunctions(pgObject *obj, pgSchema *schema, 
 			function->iSetReturnAsSet(functions->GetBool(wxT("proretset")));
 			function->iSetIsStrict(functions->GetBool(wxT("proisstrict")));
 			function->iSetSource(functions->GetVal(wxT("prosrc")));
+			if (obj->GetConnection()->BackendMinimumVersion(8, 4))
+			{
+				function->iSetSourceByPg(functions->GetVal(wxT("source_by_pg")));
+			}
+			else
+			{
+				function->iSetSourceByPg(wxT(""));
+			}
 			function->iSetBin(functions->GetVal(wxT("probin")));
 
 			wxString vol = functions->GetVal(wxT("provolatile"));
