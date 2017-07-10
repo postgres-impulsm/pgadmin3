@@ -495,8 +495,7 @@ bool pgConn::BackendMinimumVersion(int major, int minor)
 		isHawq = version.Upper().Matches(wxT("*GREENPLUM DATABASE*")) && version.Upper().Matches(wxT("*HAWQ*"));;
 	}
 
-	return majorVersion == SERVER_PG10_VERSION_N ||
-		majorVersion > major || (majorVersion == major && minorVersion >= minor);
+	return majorVersion > major || (majorVersion == major && minorVersion >= minor);
 }
 
 
@@ -507,8 +506,7 @@ bool pgConn::BackendMinimumVersion(int major, int minor, int patch)
 	if (!majorVersion)
 		BackendMinimumVersion(0, 0);
 
-	return majorVersion == SERVER_PG10_VERSION_N ||
-		majorVersion > major || (majorVersion == major && minorVersion > minor) || (majorVersion == major && minorVersion == minor && patchVersion >= patch);
+	return majorVersion > major || (majorVersion == major && minorVersion > minor) || (majorVersion == major && minorVersion == minor && patchVersion >= patch);
 }
 
 
