@@ -133,6 +133,13 @@ bool pgTrigger::DropObject(wxFrame *frame, ctlTree *browser, bool cascaded)
 
 void pgTrigger::SetEnabled(ctlTree *browser, const bool b)
 {
+	if (!b && enabled && enabledType != wxT("O"))
+	{
+		// disable for regular ("origin") triggers only
+
+		return;
+	}
+
 	if (GetQuotedFullTable().Len() > 0 && ((enabled && !b) || (!enabled && b)))
 	{
 		wxString sql = wxT("ALTER TABLE ") + GetQuotedFullTable() + wxT(" ");
@@ -204,7 +211,17 @@ wxString pgTrigger::GetSql(ctlTree *browser)
 			       + wxT(";\n");
 		}
 
-		if (!GetEnabled())
+		if (GetEnabled() && GetEnabledType() == wxT("A"))
+		{
+			sql += wxT("ALTER TABLE ") + GetQuotedFullTable() + wxT(" ")
+			       +  wxT("ENABLE ALWAYS TRIGGER ") + GetQuotedIdentifier() + wxT(";\n");
+		}
+		else if (GetEnabled() && GetEnabledType() == wxT("R"))
+		{
+			sql += wxT("ALTER TABLE ") + GetQuotedFullTable() + wxT(" ")
+			       +  wxT("ENABLE REPLICA TRIGGER ") + GetQuotedIdentifier() + wxT(";\n");
+		}
+		else if (!GetEnabled())
 		{
 			sql += wxT("ALTER TABLE ") + GetQuotedFullTable() + wxT(" ")
 			       +  wxT("DISABLE TRIGGER ") + GetQuotedIdentifier() + wxT(";\n");
@@ -441,9 +458,19 @@ pgObject *pgTriggerFactory::CreateObjects(pgCollection *coll, ctlTree *browser, 
 					trigger->iSetEnabled(true);
 				else
 					trigger->iSetEnabled(false);
+
+				trigger->iSetEnabledType(triggers->GetVal(wxT("tgenabled")));
+			}
+			else if (triggers->GetBool(wxT("tgenabled")))
+			{
+				trigger->iSetEnabled(true);
+				trigger->iSetEnabledType(wxT("O"));
 			}
 			else
-				trigger->iSetEnabled(triggers->GetBool(wxT("tgenabled")));
+			{
+				trigger->iSetEnabled(false);
+				trigger->iSetEnabledType(wxT("D"));
+			}
 
 			if (collection->GetDatabase()->connection()->BackendMinimumVersion(8, 2))
 			{
