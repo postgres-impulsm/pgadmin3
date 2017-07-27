@@ -886,15 +886,6 @@ bool frmMain::CheckAlive()
 												}
 												else
 												{
-													// Create a server object and connect it.
-													wxBusyInfo waiting(wxString::Format(_("Reconnecting to database %s"),
-													                                    db->GetName().c_str()), this);
-
-													// Give the UI a chance to redraw
-													wxSafeYield();
-													wxMilliSleep(100);
-													wxSafeYield();
-
 													if (!conn->Reconnect())
 													{
 														db->Disconnect();
@@ -939,15 +930,6 @@ bool frmMain::CheckAlive()
 							}
 							else
 							{
-								// Create a server object and connect it.
-								wxBusyInfo waiting(wxString::Format(_("Reconnecting to server %s (%s:%d)"),
-								                                    server->GetDescription().c_str(), server->GetName().c_str(), server->GetPort()), this);
-
-								// Give the UI a chance to redraw
-								wxSafeYield();
-								wxMilliSleep(100);
-								wxSafeYield();
-
 								if (!server->connection()->Reconnect())
 								{
 									server->Disconnect(this);
@@ -1050,15 +1032,6 @@ wxTreeItemId frmMain::RestoreEnvironment(pgServer *server)
 
 int frmMain::ReconnectServer(pgServer *server, bool restore)
 {
-	// Create a server object and connect it.
-	wxBusyInfo waiting(wxString::Format(_("Connecting to server %s (%s:%d)"),
-	                                    server->GetDescription().c_str(), server->GetName().c_str(), server->GetPort()), this);
-
-	// Give the UI a chance to redraw
-	wxSafeYield();
-	wxMilliSleep(100);
-	wxSafeYield();
-
 	int res = server->Connect(this, true, wxEmptyString, false, true);
 
 	// Check the result, and handle it as appropriate
