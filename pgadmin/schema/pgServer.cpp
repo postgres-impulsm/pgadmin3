@@ -693,6 +693,18 @@ int pgServer::Connect(frmMain *form, bool askPassword, const wxString &pwd, bool
 		}
 		if (askPassword)
 		{
+			if (!passwordValid)
+			{
+				int answer = wxMessageBox(
+					_("The password is marked as invalid. Do you want to unmark that?"),
+					_("Confirm"), wxYES_NO);
+
+				if (answer == wxYES)
+				{
+					passwordValid = true;
+				}
+			}
+
 			if ((sshTunnel || !passwordValid || !GetPasswordIsStored() || !GetStorePwd()) && GetSSLCert() == wxEmptyString)
 			{
 				wxString txt;
@@ -1935,14 +1947,6 @@ wxWindow *addServerFactory::StartDialog(frmMain *form, pgObject *obj)
 
 		if (dlg.GetTryConnect())
 		{
-			wxBusyInfo waiting(wxString::Format(_("Connecting to server %s (%s:%d)"),
-			                                    server->GetDescription().c_str(), server->GetName().c_str(), server->GetPort()), form);
-
-			// Give the UI a chance to redraw
-			wxSafeYield();
-			wxMilliSleep(100);
-			wxSafeYield();
-
 			rc = server->Connect(form, false, dlg.GetPassword(), true);
 		}
 		else
