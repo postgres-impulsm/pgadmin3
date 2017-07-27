@@ -155,6 +155,14 @@ public:
 	{
 		enabled = b;
 	}
+	wxString GetEnabledType() const
+	{
+		return enabledType;
+	}
+	void iSetEnabledType(const wxString &s)
+	{
+		enabledType = s;
+	}
 	void iSetTriggerFunction(pgFunction *fkt)
 	{
 		triggerFunction = fkt;
@@ -247,6 +255,7 @@ private:
 	OID functionOid, relationOid;
 	long triggerType;
 	bool enabled, parentistable, isconstraint, deferrable, deferred;
+	wxString enabledType;
 	pgFunction *triggerFunction;
 };
 
